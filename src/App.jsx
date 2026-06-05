@@ -656,10 +656,6 @@ ${cleanTextForExport(clinicalSummary)}`;
     showToast('Downloaded text file');
   };
 
-  const printDocument = () => {
-    window.print();
-  };
-
   const renderSummaryText = (text) => {
     if (!text) return null;
     
@@ -1222,7 +1218,6 @@ ${cleanTextForExport(clinicalSummary)}`;
                     <div className="actions-row">
                       <button className="btn-secondary-action" onClick={copyToClipboard}>Copy Summary</button>
                       <button className="btn-secondary-action" onClick={downloadTextFile}>Download</button>
-                      <button className="btn-secondary-action" onClick={printDocument}>Print Chart</button>
                     </div>
                   </div>
                 ) : (
