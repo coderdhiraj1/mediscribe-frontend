@@ -10,7 +10,8 @@ export default function HistorySidebar({
   toggleTheme,
   onLogoClick,
   isSidebarOpen,
-  onCloseSidebar
+  onCloseSidebar,
+  isHistoryLoading
 }) {
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -132,8 +133,13 @@ export default function HistorySidebar({
       </div>
 
       <div className="history-list-wrapper">
-        <h3 className="section-title">Session History ({filteredSessions.length})</h3>
-        {filteredSessions.length === 0 ? (
+        <h3 className="section-title">Session History ({isHistoryLoading ? '...' : filteredSessions.length})</h3>
+        {isHistoryLoading ? (
+          <div className="history-loading" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', gap: '12px' }}>
+            <div className="ai-glow-spinner" style={{ width: '28px', height: '28px' }}></div>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>Connecting to engine...</p>
+          </div>
+        ) : filteredSessions.length === 0 ? (
           <div className="empty-history">
             <p>{searchTerm ? 'No matching records found' : 'No past sessions yet'}</p>
           </div>

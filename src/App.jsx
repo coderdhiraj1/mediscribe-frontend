@@ -98,6 +98,7 @@ export default function App() {
   // Welcome & tutorial guide state
   const [isWelcomeState, setIsWelcomeState] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
 
   // Theme states
   const [theme, setTheme] = useState(() => {
@@ -142,6 +143,7 @@ export default function App() {
   // Load history from backend or local storage on mount
   useEffect(() => {
     const fetchBackendSessions = async () => {
+      setIsHistoryLoading(true);
       if (BACKEND_API_URL) {
         try {
           const res = await fetch(`${BACKEND_API_URL}/sessions`);
@@ -157,6 +159,7 @@ export default function App() {
               return session;
             });
             setSessions(resolvedData);
+            setIsHistoryLoading(false);
             return;
           }
         } catch (e) {
@@ -213,6 +216,7 @@ export default function App() {
         setSessions(defaultSessions);
         localStorage.setItem('mediscribe_simple_summaries', JSON.stringify(defaultSessions));
       }
+      setIsHistoryLoading(false);
     };
 
     fetchBackendSessions();
@@ -906,6 +910,7 @@ ${cleanTextForExport(clinicalSummary)}`;
         }}
         isSidebarOpen={isSidebarOpen}
         onCloseSidebar={() => setIsSidebarOpen(false)}
+        isHistoryLoading={isHistoryLoading}
       />
 
       {/* Primary Dashboard Panel */}
@@ -915,9 +920,9 @@ ${cleanTextForExport(clinicalSummary)}`;
           <h1 style={{ fontSize: '26px', background: 'linear-gradient(135deg, var(--text-strong, #ffffff) 40%, var(--accent-primary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: '700' }}>
             MediScribe
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
+          {/* <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
             Capture patient-junior doctor conversations. Whisper transcribes the speech, and Gemini automatically translates and summarizes the complaints and symptoms in clinical terms.
-          </p>
+          </p> */}
         </div>
 
         {isWelcomeState ? (
@@ -1140,14 +1145,27 @@ ${cleanTextForExport(clinicalSummary)}`;
                     )}
 
                     <button
-                      className="btn-primary-action"
+                      className={`btn-primary-action ${isLoading ? 'loading' : ''}`}
                       style={{ marginTop: '10px' }}
                       onClick={processConversation}
                       disabled={isLoading || (!audioBlob && !fileToUpload && !transcript)}
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                      </svg>
+                      {isLoading ? (
+                        <span className="spinner-mini" style={{
+                          width: '16px',
+                          height: '16px',
+                          border: '2px solid transparent',
+                          borderTopColor: 'currentColor',
+                          borderBottomColor: 'currentColor',
+                          borderRadius: '50%',
+                          display: 'inline-block',
+                          animation: 'rotate-spinner 1s linear infinite'
+                        }}></span>
+                      ) : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                      )}
                       {isLoading ? 'Transcribing & Summarizing...' : 'Transcribe & Generate Medical Note'}
                     </button>
                   </>
