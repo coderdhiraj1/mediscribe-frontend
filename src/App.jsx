@@ -3,67 +3,7 @@ import WaveformVisualizer from './components/WaveformVisualizer';
 import HistorySidebar from './components/HistorySidebar';
 import './App.css';
 
-// Unified mock data containing transcripts and conversation-only summaries (no vitals or plans)
-const MOCK_DATA = {
-  hi: {
-    patientName: 'Sunita Patel',
-    title: 'Fever & Cough Intake',
-    language: 'Hinglish',
-    date: 'Jun 5, 2026',
-    transcript: `Junior Doctor: नमस्ते सुनीता जी, बैठिए। क्या तकलीफ है आपको?
-Patient: नमस्ते डॉक्टर साहब। मुझे दो दिन से बहुत तेज़ बुखार है और सूखी खांसी भी आ रही है। Body pain भी बहुत हो रहा है।
-Junior Doctor: बुखार कितना था? क्या आपने नापा था?
-Patient: हां, कल रात को 102 degrees था डॉक्टर साहब। मैंने paracetamol ली थी, तो थोड़ा कम हुआ पर सुबह फिर से बढ़ गया।
-Junior Doctor: और खांसी के साथ बलगम आ रहा है या सिर्फ सूखी खांसी है? सांस फूलने की समस्या तो नहीं है?
-Patient: नहीं, बलगम नहीं है, सूखी खांसी ही है। सांस लेने में कोई तकलीफ नहीं है, बस कमजोरी बहुत लग रही है।
-Junior Doctor: ठीक है, मैं आपका fever और oxygen level check कर लेता हूँ। SpO2 98% है जो बिल्कुल सामान्य है। छाती में से भी कोई आवाज नहीं है, lungs clear हैं। आप आराम कीजिए, मैं सीनियर डॉक्टर साहब को रिपोर्ट सौंपता हूँ।`,
-    summary: `CHIEF COMPLAINTS & HISTORY:
-- Fever: High-grade fever (reported up to 102°F) persisting for the past 2 days. The temperature drops temporarily with Paracetamol but recurs.
-- Cough: Dry, non-productive cough of 2 days duration.
-- Systemic: Generalized body aches, myalgia, and associated physical weakness/fatigue.
 
-DIAGNOSTIC EXCLUSIONS & CONTROLS:
-- Denies productive cough or phlegm.
-- Denies chest pain or shortness of breath (dyspnea).
-- No known drug allergies reported.`
-  },
-  ta: {
-    patientName: 'Priya Swaminathan',
-    title: 'Migraine Exacerbation',
-    language: 'Tamil',
-    date: 'Jun 4, 2026',
-    transcript: `Junior Doctor: வணக்கம் பிரியா, சொல்லுங்க உங்களுக்கு என்ன பிரச்சனை?
-Patient: வணக்கம் டாக்டர். கடந்த 3 நாட்களா severe headache இருக்கு. தலைக்கு வலது பக்கத்துல ஒரு மாதிரி throbbing pain இருக்கு.
-Junior Doctor: வெளிச்சம் பார்த்தா கண் கூசுதா? வாந்தி ஏதும் வந்ததா?
-Patient: ஆமா டாக்டர், லைட் பார்த்தாலே கண் ரொம்ப வலிக்குது, nausea-வும் இருக்கு. நேத்து கூட ஒரு தரம் வாந்தி எடுத்தேன்.
-Junior Doctor: சரி, நான் BP செக் பண்றேன்... BP 120/80 normal. நீங்க ஒழுங்கா தூங்குறீங்களா?
-Patient: இல்ல டாக்டர், இந்த வாரம் office project-னால தூக்கம் ரொம்ப கம்மியாகிடுச்சு.
-Junior Doctor: சரி, நான் இத சீனியர் டாக்டரிடம் அப்டேட் பண்றேன்.`,
-    summary: `CHIEF COMPLAINTS & HISTORY:
-- Headache: Severe, right-sided throbbing headache persisting for the past 3 days.
-- Gastrointestinal: Associated moderate nausea and one episode of vomiting reported yesterday.
-- Sensory: Reports photophobia (eye pain when exposed to bright light) and phonophobia (irritated by loud sounds).
-
-SOCIAL & CONTEXTUAL FACTORS:
-- Trigger: Severe sleep deprivation during the past week due to office project deadlines.
-- Medication: Home migraine rescue medicines were taken but failed to provide relief.`
-  },
-  en: {
-    patientName: 'John Davis',
-    title: 'Hypertension Review',
-    language: 'English',
-    date: 'Jun 3, 2026',
-    transcript: `Junior Doctor: Hello Mr. Davis. I see you are here for a blood pressure review. Let's record your vitals.
-Patient: Yes, my home readings have been running high, around 145 over 92, even though I take my medications.
-Junior Doctor: I've checked your clinic BP; it is 148/94. You are currently taking Amlodipine 5mg, correct?
-Patient: Yes, daily in the morning.
-Junior Doctor: I will document this for the attending consultant.`,
-    summary: `CHIEF COMPLAINTS & HISTORY:
-- Reason for Consult: Blood pressure follow-up. Patient reports home blood pressure readings have been elevated, averaging around 145/92 mmHg over the past two weeks.
-- Medication Compliance: Patient reports complete compliance with daily morning dosage of Amlodipine 5mg.
-- Associated Symptoms: Denies headaches, dizziness, pedal edema (ankle swelling), dyspnea, or chest pain.`
-  }
-};
 
 const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:5001/api';
 
@@ -171,50 +111,13 @@ export default function App() {
       const saved = localStorage.getItem('mediscribe_simple_summaries');
       if (saved) {
         try {
-          const parsed = JSON.parse(saved);
+          const parsed = JSON.parse(saved).filter(s => s.id !== 'demo-1');
           setSessions(parsed);
         } catch (e) {
           console.error('Failed to parse saved sessions', e);
         }
       } else {
-        // Pre-populate with completed mock cases
-        const defaultSessions = [
-          {
-            id: 'demo-1',
-            patientName: MOCK_DATA.hi.patientName,
-            title: MOCK_DATA.hi.title,
-            language: MOCK_DATA.hi.language,
-            date: 'Jun 5, 2026',
-            transcript: MOCK_DATA.hi.transcript,
-            summary: MOCK_DATA.hi.summary,
-            audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-            audioFile: 'demo_sunita_patel_intake.mp3'
-          },
-          {
-            id: 'demo-2',
-            patientName: MOCK_DATA.ta.patientName,
-            title: MOCK_DATA.ta.title,
-            language: MOCK_DATA.ta.language,
-            date: 'Jun 4, 2026',
-            transcript: MOCK_DATA.ta.transcript,
-            summary: MOCK_DATA.ta.summary,
-            audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-            audioFile: 'demo_priya_swaminathan_intake.mp3'
-          },
-          {
-            id: 'demo-3',
-            patientName: MOCK_DATA.en.patientName,
-            title: MOCK_DATA.en.title,
-            language: MOCK_DATA.en.language,
-            date: 'Jun 3, 2026',
-            transcript: MOCK_DATA.en.transcript,
-            summary: MOCK_DATA.en.summary,
-            audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-            audioFile: 'demo_john_davis_intake.mp3'
-          }
-        ];
-        setSessions(defaultSessions);
-        localStorage.setItem('mediscribe_simple_summaries', JSON.stringify(defaultSessions));
+        setSessions([]);
       }
       setIsHistoryLoading(false);
     };
@@ -405,7 +308,9 @@ export default function App() {
         
         if (!summaryRes.ok) {
           const errData = await summaryRes.json().catch(() => ({}));
-          throw new Error(errData.error || `Clinical summary generation failed with status ${summaryRes.status}`);
+          const summaryError = new Error(errData.error || `Clinical summary generation failed with status ${summaryRes.status}`);
+          summaryError.isSummaryError = true;
+          throw summaryError;
         }
         
         const summaryData = await summaryRes.json();
@@ -423,47 +328,17 @@ export default function App() {
         const errorMsg = err.message || '';
         if (err.isTranscriptionError) {
           alert(`⚠️ Transcription Error (Groq Whisper):\n\n${errorMsg}`);
+        } else if (err.isSummaryError) {
+          alert(`⚠️ Summary Generation Error:\n\n${errorMsg}`);
         } else if (errorMsg.includes('Rate Limit') || errorMsg.includes('Quota') || errorMsg.includes('429') || errorMsg.includes('limit')) {
           alert(`⚠️ API Rate Limit Reached (Free Tier Limit):\n\n${errorMsg}\n\nPlease wait a few moments and try again, or upgrade your API key plans to a paid subscription.`);
         } else {
-          showToast('Connection error. Triggering local AI simulation.');
-          simulateScribeProcessing();
+          alert(`⚠️ Connection Error: Failed to communicate with the MediScribe backend. Please verify your backend server is running on http://localhost:5001.\n\nDetails: ${errorMsg}`);
         }
       }
     } else {
-      simulateScribeProcessing();
+      alert('⚠️ Configuration Error: BACKEND_API_URL is not defined.');
     }
-  };
-
-  const simulateScribeProcessing = () => {
-    setTimeout(() => {
-      let mockKey = language;
-      if (language === 'auto') {
-        const nameLower = patientName.toLowerCase();
-        const titleLower = sessionTitle.toLowerCase();
-        if (nameLower.includes('priya') || titleLower.includes('tamil') || titleLower.includes('migraine')) {
-          mockKey = 'ta';
-        } else if (nameLower.includes('john') || nameLower.includes('davis') || titleLower.includes('hypertension') || titleLower.includes('blood pressure')) {
-          mockKey = 'en';
-        } else {
-          mockKey = 'hi';
-        }
-      }
-      
-      const mock = MOCK_DATA[mockKey] || MOCK_DATA.hi;
-      const detectedLabel = mockKey === 'hi' ? 'Hinglish' : mockKey === 'ta' ? 'Tamil' : 'English';
-      
-      setTranscript(mock.transcript);
-      setLoadingMessage(`Auto-detected language as ${detectedLabel}. Summarizing conversation in professional doctor terms...`);
-      
-      setTimeout(() => {
-        setClinicalSummary(mock.summary);
-        setIsLoading(false);
-        setLoadingMessage('');
-        saveSessionState(mock.transcript, mock.summary);
-        showToast('Clinical summary compiled successfully!');
-      }, 1500);
-    }, 1200);
   };
 
   const saveSessionState = async (finalTranscript, finalSummary, customAudioFile = null, customAudioUrl = null) => {
@@ -569,23 +444,9 @@ export default function App() {
     setClinicalSummary(session.summary || '');
     setBackendAudioFile(session.audioFile || null);
     
-    // Set audio from the saved session, fallback to dummy audio if none exists (for local demo)
     if (session.audioUrl) {
       setAudioUrl(session.audioUrl);
       setFileToUpload(session.audioFile ? { name: session.audioFile } : null);
-    } else if (session.id.startsWith('demo-')) {
-      const demoAudioUrls = {
-        'demo-1': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-        'demo-2': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-        'demo-3': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
-      };
-      const demoFiles = {
-        'demo-1': 'demo_sunita_patel_intake.mp3',
-        'demo-2': 'demo_priya_swaminathan_intake.mp3',
-        'demo-3': 'demo_john_davis_intake.mp3'
-      };
-      setAudioUrl(demoAudioUrls[session.id] || demoAudioUrls['demo-1']);
-      setFileToUpload({ name: demoFiles[session.id] || 'demo_recording.mp3' });
     } else {
       // General dummy audio fallback for custom saved sessions that don't have active memory blob URLs anymore
       setAudioUrl('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
@@ -977,7 +838,7 @@ ${cleanTextForExport(clinicalSummary)}`;
                     <input
                       id="patient-name"
                       type="text"
-                      placeholder="e.g. Sunita Patel"
+                      placeholder="e.g. Sita Devi"
                       value={patientName}
                       onChange={(e) => setPatientName(e.target.value)}
                       disabled={activeSessionId !== null}
