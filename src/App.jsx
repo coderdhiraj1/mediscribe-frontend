@@ -385,7 +385,11 @@ export default function App() {
           if (sttData.filename) {
             uploadedFilename = sttData.filename;
             setBackendAudioFile(sttData.filename);
-            setAudioUrl(`${BACKEND_API_URL.replace('/api', '')}/uploads/${sttData.filename}`);
+            if (sttData.audioUrl) {
+              setAudioUrl(sttData.audioUrl);
+            } else {
+              setAudioUrl(`${BACKEND_API_URL.replace('/api', '')}/uploads/${sttData.filename}`);
+            }
           }
         }
 
