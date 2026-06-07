@@ -362,6 +362,7 @@ export default function App() {
         const sourceFile = fileToUpload || audioBlob;
         let activeTranscript = transcript;
         let uploadedFilename = null;
+        let sttData = null;
 
         if (sourceFile) {
           const formData = new FormData();
@@ -379,7 +380,7 @@ export default function App() {
             throw new Error(errData.error || `Transcription failed with status ${sttRes.status}`);
           }
           
-          const sttData = await sttRes.json();
+          sttData = await sttRes.json();
           activeTranscript = sttData.transcript;
           setTranscript(sttData.transcript);
           if (sttData.filename) {
@@ -410,7 +411,7 @@ export default function App() {
         setClinicalSummary(summaryData.summary);
         setIsLoading(false);
         setLoadingMessage('');
-        const resolvedAudioUrl = sttData.audioUrl || `${BACKEND_API_URL.replace('/api', '')}/uploads/${sttData.filename}`;
+        const resolvedAudioUrl = sttData?.audioUrl || (sttData?.filename ? `${BACKEND_API_URL.replace('/api', '')}/uploads/${sttData.filename}` : null);
         saveSessionState(activeTranscript, summaryData.summary, uploadedFilename, resolvedAudioUrl);
       } catch (err) {
         console.error(err);
