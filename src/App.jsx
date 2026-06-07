@@ -377,7 +377,9 @@ export default function App() {
           
           if (!sttRes.ok) {
             const errData = await sttRes.json().catch(() => ({}));
-            throw new Error(errData.error || `Transcription failed with status ${sttRes.status}`);
+            const transcriptionError = new Error(errData.error || `Transcription failed with status ${sttRes.status}`);
+            transcriptionError.isTranscriptionError = true;
+            throw transcriptionError;
           }
           
           sttData = await sttRes.json();
@@ -419,7 +421,9 @@ export default function App() {
         setLoadingMessage('');
         
         const errorMsg = err.message || '';
-        if (errorMsg.includes('Rate Limit') || errorMsg.includes('Quota') || errorMsg.includes('429') || errorMsg.includes('limit')) {
+        if (err.isTranscriptionError) {
+          alert(`⚠️ Transcription Error (Groq Whisper):\n\n${errorMsg}`);
+        } else if (errorMsg.includes('Rate Limit') || errorMsg.includes('Quota') || errorMsg.includes('429') || errorMsg.includes('limit')) {
           alert(`⚠️ API Rate Limit Reached (Free Tier Limit):\n\n${errorMsg}\n\nPlease wait a few moments and try again, or upgrade your API key plans to a paid subscription.`);
         } else {
           showToast('Connection error. Triggering local AI simulation.');
