@@ -410,7 +410,8 @@ export default function App() {
         setClinicalSummary(summaryData.summary);
         setIsLoading(false);
         setLoadingMessage('');
-        saveSessionState(activeTranscript, summaryData.summary, uploadedFilename);
+        const resolvedAudioUrl = sttData.audioUrl || `${BACKEND_API_URL.replace('/api', '')}/uploads/${sttData.filename}`;
+        saveSessionState(activeTranscript, summaryData.summary, uploadedFilename, resolvedAudioUrl);
       } catch (err) {
         console.error(err);
         setIsLoading(false);
@@ -460,7 +461,7 @@ export default function App() {
     }, 1200);
   };
 
-  const saveSessionState = async (finalTranscript, finalSummary, customAudioFile = null) => {
+  const saveSessionState = async (finalTranscript, finalSummary, customAudioFile = null, customAudioUrl = null) => {
     const sessionPatient = patientName || 'Unnamed Patient';
     const sessionTitleText = sessionTitle || 'Consultation - Review';
 
@@ -493,7 +494,7 @@ export default function App() {
       date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
       transcript: finalTranscript,
       summary: finalSummary,
-      audioUrl: audioUrl,
+      audioUrl: customAudioUrl || audioUrl,
       audioFile: customAudioFile || backendAudioFile || (fileToUpload ? fileToUpload.name : (audioBlob ? 'recorded_mic_input.mp3' : null))
     };
 
