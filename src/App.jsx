@@ -15,8 +15,10 @@ export default function App() {
   // Form inputs
   const [patientName, setPatientName] = useState('');
   const [sessionTitle, setSessionTitle] = useState('');
-  const [language, setLanguage] = useState('auto'); // Default: Auto-Detect Language
-  const [initialLanguage, setInitialLanguage] = useState('auto');
+  const [language, setLanguage] = useState(''); // Default: empty Stage (Select Language)
+  const [initialLanguage, setInitialLanguage] = useState('');
+  const [shouldShakeLanguage, setShouldShakeLanguage] = useState(false);
+  const [regenerationCount, setRegenerationCount] = useState(0);
 
   // Audio Recorder states
   const [isRecording, setIsRecording] = useState(false);
@@ -253,6 +255,13 @@ export default function App() {
 
   // Clinical Process pipeline
   const processConversation = async () => {
+    if (!language) {
+      setShouldShakeLanguage(true);
+      showToast('Spoken language selection is required!');
+      setTimeout(() => setShouldShakeLanguage(false), 500);
+      return;
+    }
+
     if (!audioBlob && !fileToUpload && !transcript) {
       alert('Please record speech, upload an audio recording, or type consultation notes.');
       return;
@@ -376,7 +385,8 @@ export default function App() {
       transcript: finalTranscript,
       summary: finalSummary,
       audioUrl: customAudioUrl || audioUrl,
-      audioFile: customAudioFile || backendAudioFile || (fileToUpload ? fileToUpload.name : (audioBlob ? 'recorded_mic_input.mp3' : null))
+      audioFile: customAudioFile || backendAudioFile || (fileToUpload ? fileToUpload.name : (audioBlob ? 'recorded_mic_input.mp3' : null)),
+      regenerationCount: regenerationCount
     };
 
     if (BACKEND_API_URL) {
@@ -402,6 +412,8 @@ export default function App() {
             setActiveSessionId(savedSession.id);
           }
           saveSessionsToLocalStorage(updated);
+          setInitialLanguage(savedSession.selectedLanguage || language);
+          setRegenerationCount(savedSession.regenerationCount || 0);
           return;
         }
       } catch (e) {
@@ -417,6 +429,8 @@ export default function App() {
       setActiveSessionId(newSession.id);
     }
     saveSessionsToLocalStorage(updated);
+    setInitialLanguage(newSession.selectedLanguage || language);
+    setRegenerationCount(newSession.regenerationCount || 0);
   };
 
   const loadSession = (session) => {
@@ -441,6 +455,7 @@ export default function App() {
     }
     setLanguage(langCode);
     setInitialLanguage(langCode);
+    setRegenerationCount(session.regenerationCount || 0);
 
     setTranscript(session.transcript || '');
     setClinicalSummary(session.summary || '');
@@ -491,12 +506,25 @@ export default function App() {
     setAudioBlob(null);
     setFileToUpload(null);
     setRecordingTime(0);
-    setLanguage('auto');
-    setInitialLanguage('auto');
+    setLanguage('');
+    setInitialLanguage('');
+    setRegenerationCount(0);
   };
 
   const regenerateSession = async () => {
     if (!activeSessionId) return;
+
+    if (regenerationCount >= 3) {
+      showToast('⚠️ Maximum limit of 3 regenerations reached.');
+      return;
+    }
+
+    if (!language) {
+      setShouldShakeLanguage(true);
+      showToast('Spoken language selection is required!');
+      setTimeout(() => setShouldShakeLanguage(false), 500);
+      return;
+    }
 
     setIsLoading(true);
     setLoadingMessage('Re-transcribing via Whisper & summarizing via Gemini...');
@@ -522,6 +550,7 @@ export default function App() {
         setTranscript(updatedSession.transcript);
         setClinicalSummary(updatedSession.summary);
         setInitialLanguage(language);
+        setRegenerationCount(updatedSession.regenerationCount || 0);
         
         // Update sessions list
         const resolvedSession = {
@@ -883,67 +912,6 @@ ${cleanTextForExport(clinicalSummary)}`;
             {/* LEFT SIDE: Dialogue Input Controls */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
-              {/* Meta details */}
-              <section className="glass-panel panel-body">
-                <div className="panel-header">
-                  <h3>Session Metadata</h3>
-                </div>
-
-                <div className="setup-row">
-                  <div className="input-group">
-                    <label htmlFor="patient-name">Patient Name / ID</label>
-                    <input
-                      id="patient-name"
-                      type="text"
-                      placeholder="e.g. Sita Devi"
-                      value={patientName}
-                      onChange={(e) => setPatientName(e.target.value)}
-                      disabled={activeSessionId !== null}
-                    />
-                  </div>
-
-                  <div className="input-group">
-                    <label htmlFor="select-language" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      Primary Spoken Language
-                      <span className="tooltip-container">
-                        i
-                        <span className="tooltip-text">
-                          Select the language in which the patient is most comfortable with
-                        </span>
-                      </span>
-                    </label>
-                    <select
-                      id="select-language"
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
-                      disabled={isLoading}
-                    >
-                      <option value="auto">✨ Auto-Detect Spoken Language</option>
-                      <option value="hi">Hinglish / Hindi (हिन्दी)</option>
-                      <option value="en">English (US/UK)</option>
-                      <option value="ta">Tamil / Singlish (தமிழ்)</option>
-                      <option value="te">Telugu (తెలుగు)</option>
-                      <option value="bn">Bengali (বাংলা)</option>
-                      <option value="kn">Kannada (ಕನ್ನಡ)</option>
-                      <option value="mr">Marathi (मराठी)</option>
-                      <option value="ml">Malayalam (മലയാളം)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="input-group">
-                  <label htmlFor="session-title">Consultation Title</label>
-                  <input
-                    id="session-title"
-                    type="text"
-                    placeholder="e.g. Fever & Cough Consultation"
-                    value={sessionTitle}
-                    onChange={(e) => setSessionTitle(e.target.value)}
-                    disabled={activeSessionId !== null}
-                  />
-                </div>
-              </section>
-
               {/* Microphone recorder & file dropper OR Playback panel for existing */}
               <section className="glass-panel panel-body">
                 <div className="panel-header">
@@ -991,63 +959,6 @@ ${cleanTextForExport(clinicalSummary)}`;
                         <audio src={audioUrl} controls style={{ width: '100%' }} />
                       </div>
                     </div>
-                                    {language === initialLanguage ? (
-                      <div style={{
-                        fontSize: '12.5px',
-                        color: 'var(--text-secondary)',
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '10px',
-                        padding: '10px 14px',
-                        textAlign: 'center',
-                        width: '100%',
-                        lineHeight: '1.4'
-                      }}>
-                        💡 To regenerate this note, change the <strong>Primary Spoken Language</strong> in the <strong>Session Metadata</strong> dropdown above.
-                      </div>
-                    ) : (
-                      <div style={{
-                        fontSize: '12.5px',
-                        color: 'var(--accent-secondary, #2dd4bf)',
-                        background: 'rgba(45, 212, 191, 0.03)',
-                        border: '1px solid rgba(45, 212, 191, 0.2)',
-                        borderRadius: '10px',
-                        padding: '10px 14px',
-                        textAlign: 'center',
-                        width: '100%',
-                        lineHeight: '1.4'
-                      }}>
-                        ✨ Spoken language modified! Click <strong>Regenerate Note</strong> to process the recording.
-                      </div>
-                    )}
-
-                    <button
-                      className={`btn-primary-action ${isLoading ? 'loading' : ''}`}
-                      onClick={regenerateSession}
-                      disabled={isLoading || language === initialLanguage}
-                      style={{
-                        background: language === initialLanguage 
-                          ? 'rgba(255, 255, 255, 0.05)'
-                          : 'linear-gradient(135deg, var(--accent-primary, #8b5cf6), var(--accent-secondary, #2dd4bf))',
-                        boxShadow: language === initialLanguage ? 'none' : '0 4px 15px var(--accent-primary-glow)',
-                        marginTop: '4px',
-                        marginBottom: '4px'
-                      }}
-                    >
-                      {isLoading && (
-                        <span className="spinner-mini" style={{
-                          width: '16px',
-                          height: '16px',
-                          border: '2px solid transparent',
-                          borderTopColor: 'currentColor',
-                          borderBottomColor: 'currentColor',
-                          borderRadius: '50%',
-                          display: 'inline-block',
-                          animation: 'rotate-spinner 1s linear infinite'
-                        }}></span>
-                      )}
-                      {isLoading ? 'Regenerating...' : 'Regenerate Note'}
-                    </button>
                     
                     <div style={{
                       padding: '12px 16px',
@@ -1059,7 +970,7 @@ ${cleanTextForExport(clinicalSummary)}`;
                       lineHeight: '1.5',
                       textAlign: 'center'
                     }}>
-                      🔒 This consultation chart details are locked. If the incorrect language was selected, you can change it in the Session Metadata above and click Regenerate Note. For other modifications, please record a fresh session.
+                      🔒 This consultation chart details are locked. If the incorrect language was selected, you can change it in the Session Metadata below and click Regenerate Note. For other modifications, please record a fresh session.
                     </div>
                   </div>
                 ) : (
@@ -1124,14 +1035,139 @@ ${cleanTextForExport(clinicalSummary)}`;
                         <audio src={audioUrl} controls />
                       </div>
                     )}
+                  </>
+                )}
+              </section>
+
+              {/* Meta details */}
+              <section className="glass-panel panel-body">
+                <div className="panel-header">
+                  <h3>Session Metadata</h3>
+                </div>
+
+                <div className="setup-row">
+                  <div className="input-group">
+                    <label htmlFor="patient-name">Patient Name / ID</label>
+                    <input
+                      id="patient-name"
+                      type="text"
+                      placeholder="e.g. Sita Devi"
+                      value={patientName}
+                      onChange={(e) => setPatientName(e.target.value)}
+                      disabled={activeSessionId !== null}
+                    />
+                  </div>
+
+                  <div className="input-group">
+                    <label htmlFor="select-language" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      Primary Spoken Language
+                      <span className="tooltip-container">
+                        i
+                        <span className="tooltip-text">
+                          Select the language in which the patient is most comfortable with
+                        </span>
+                      </span>
+                    </label>
+                    <select
+                      id="select-language"
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      disabled={isLoading}
+                      className={shouldShakeLanguage ? 'shake-animation' : ''}
+                    >
+                      <option value="">Select Language</option>
+                      <option value="auto">✨ Auto-Detect Spoken Language</option>
+                      <option value="hi">Hinglish / Hindi (हिन्दी)</option>
+                      <option value="en">English (US/UK)</option>
+                      <option value="ta">Tamil / Singlish (தமிழ்)</option>
+                      <option value="te">Telugu (తెలుగు)</option>
+                      <option value="bn">Bengali (বাংলা)</option>
+                      <option value="kn">Kannada (ಕನ್ನಡ)</option>
+                      <option value="mr">Marathi (मराठी)</option>
+                      <option value="ml">Malayalam (മലയാളം)</option>
+                    </select>
+                    {shouldShakeLanguage && (
+                      <span style={{ color: 'var(--accent-red, #ef4444)', fontSize: '11px', marginTop: '2px' }}>
+                        ⚠️ Language selection is required.
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="input-group">
+                  <label htmlFor="session-title">Consultation Title</label>
+                  <input
+                    id="session-title"
+                    type="text"
+                    placeholder="e.g. Fever & Cough Consultation"
+                    value={sessionTitle}
+                    onChange={(e) => setSessionTitle(e.target.value)}
+                    disabled={activeSessionId !== null}
+                  />
+                </div>
+
+                {activeSessionId ? (
+                  <>
+                    {regenerationCount >= 3 ? (
+                      <div style={{
+                        fontSize: '12.5px',
+                        color: 'var(--accent-red, #ef4444)',
+                        background: 'rgba(239, 68, 68, 0.03)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        borderRadius: '10px',
+                        padding: '10px 14px',
+                        textAlign: 'center',
+                        width: '100%',
+                        lineHeight: '1.4',
+                        marginTop: '16px'
+                      }}>
+                        ⚠️ Maximum limit of 3 regenerations reached for this session.
+                      </div>
+                    ) : language === initialLanguage ? (
+                      <div style={{
+                        fontSize: '12.5px',
+                        color: 'var(--text-secondary)',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '10px',
+                        padding: '10px 14px',
+                        textAlign: 'center',
+                        width: '100%',
+                        lineHeight: '1.4',
+                        marginTop: '16px'
+                      }}>
+                        💡 To regenerate this note, change the <strong>Primary Spoken Language</strong> in the dropdown above. <span style={{ opacity: 0.7 }}>({3 - regenerationCount} remaining)</span>
+                      </div>
+                    ) : (
+                      <div style={{
+                        fontSize: '12.5px',
+                        color: 'var(--accent-secondary, #2dd4bf)',
+                        background: 'rgba(45, 212, 191, 0.03)',
+                        border: '1px solid rgba(45, 212, 191, 0.2)',
+                        borderRadius: '10px',
+                        padding: '10px 14px',
+                        textAlign: 'center',
+                        width: '100%',
+                        lineHeight: '1.4',
+                        marginTop: '16px'
+                      }}>
+                        ✨ Spoken language modified! Click <strong>Regenerate Note</strong> below to process. <span style={{ opacity: 0.8 }}>({3 - regenerationCount} remaining)</span>
+                      </div>
+                    )}
 
                     <button
                       className={`btn-primary-action ${isLoading ? 'loading' : ''}`}
-                      style={{ marginTop: '10px' }}
-                      onClick={processConversation}
-                      disabled={isLoading || (!audioBlob && !fileToUpload && !transcript)}
+                      onClick={regenerateSession}
+                      disabled={isLoading || language === initialLanguage || regenerationCount >= 3}
+                      style={{
+                        background: (language === initialLanguage || regenerationCount >= 3)
+                          ? 'rgba(255, 255, 255, 0.05)'
+                          : 'linear-gradient(135deg, var(--accent-primary, #8b5cf6), var(--accent-secondary, #2dd4bf))',
+                        boxShadow: (language === initialLanguage || regenerationCount >= 3) ? 'none' : '0 4px 15px var(--accent-primary-glow)',
+                        marginTop: '12px'
+                      }}
                     >
-                      {isLoading ? (
+                      {isLoading && (
                         <span className="spinner-mini" style={{
                           width: '16px',
                           height: '16px',
@@ -1142,14 +1178,31 @@ ${cleanTextForExport(clinicalSummary)}`;
                           display: 'inline-block',
                           animation: 'rotate-spinner 1s linear infinite'
                         }}></span>
-                      ) : (
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                        </svg>
                       )}
-                      {isLoading ? 'Transcribing & Summarizing...' : 'Transcribe & Generate Medical Note'}
+                      {isLoading ? 'Regenerating...' : 'Regenerate Note'}
                     </button>
                   </>
+                ) : (
+                  <button
+                    className={`btn-primary-action ${isLoading ? 'loading' : ''}`}
+                    style={{ marginTop: '16px' }}
+                    onClick={processConversation}
+                    disabled={isLoading || (!audioBlob && !fileToUpload && !transcript)}
+                  >
+                    {isLoading && (
+                      <span className="spinner-mini" style={{
+                        width: '16px',
+                        height: '16px',
+                        border: '2px solid transparent',
+                        borderTopColor: 'currentColor',
+                        borderBottomColor: 'currentColor',
+                        borderRadius: '50%',
+                        display: 'inline-block',
+                        animation: 'rotate-spinner 1s linear infinite'
+                      }}></span>
+                    )}
+                    {isLoading ? 'Transcribing & Summarizing...' : 'Transcribe & Generate Medical Note'}
+                  </button>
                 )}
               </section>
             </div>
