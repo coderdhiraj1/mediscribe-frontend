@@ -16,6 +16,7 @@ export default function App() {
   const [patientName, setPatientName] = useState('');
   const [sessionTitle, setSessionTitle] = useState('');
   const [language, setLanguage] = useState('auto'); // Default: Auto-Detect Language
+  const [initialLanguage, setInitialLanguage] = useState('auto');
 
   // Audio Recorder states
   const [isRecording, setIsRecording] = useState(false);
@@ -424,10 +425,10 @@ export default function App() {
     setPatientName(session.patientName || '');
     setSessionTitle(session.title || '');
     
+    let langCode = 'en';
     if (session.selectedLanguage) {
-      setLanguage(session.selectedLanguage);
+      langCode = session.selectedLanguage;
     } else {
-      let langCode = 'en';
       if (session.language === 'Hinglish') langCode = 'hi';
       else if (session.language === 'Tamil') langCode = 'ta';
       else if (session.language === 'Telugu') langCode = 'te';
@@ -437,8 +438,9 @@ export default function App() {
       else if (session.language === 'Malayalam') langCode = 'ml';
       else if (session.language === 'English') langCode = 'en';
       else if (session.language === 'auto') langCode = 'auto';
-      setLanguage(langCode);
     }
+    setLanguage(langCode);
+    setInitialLanguage(langCode);
 
     setTranscript(session.transcript || '');
     setClinicalSummary(session.summary || '');
@@ -490,6 +492,61 @@ export default function App() {
     setFileToUpload(null);
     setRecordingTime(0);
     setLanguage('auto');
+    setInitialLanguage('auto');
+  };
+
+  const regenerateSession = async () => {
+    if (!activeSessionId) return;
+
+    setIsLoading(true);
+    setLoadingMessage('Re-transcribing via Whisper & summarizing via Gemini...');
+
+    if (BACKEND_API_URL) {
+      try {
+        const response = await fetch(`${BACKEND_API_URL}/sessions/${activeSessionId}/regenerate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ language }),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Regeneration failed with status ${response.status}`);
+        }
+
+        const updatedSession = await response.json();
+        
+        // Update local state
+        setTranscript(updatedSession.transcript);
+        setClinicalSummary(updatedSession.summary);
+        setInitialLanguage(language);
+        
+        // Update sessions list
+        const resolvedSession = {
+          ...updatedSession,
+          audioUrl: updatedSession.audioFile && !updatedSession.audioUrl
+            ? `${BACKEND_API_URL.replace('/api', '')}/uploads/${updatedSession.audioFile}`
+            : updatedSession.audioUrl
+        };
+
+        const updatedSessions = sessions.map(s => s.id === activeSessionId ? resolvedSession : s);
+        saveSessionsToLocalStorage(updatedSessions);
+
+        showToast('Transcription and summary regenerated successfully!');
+      } catch (err) {
+        console.error(err);
+        alert(`⚠️ Regeneration Error:\n\n${err.message}`);
+      } finally {
+        setIsLoading(false);
+        setLoadingMessage('');
+      }
+    } else {
+      alert('⚠️ Configuration Error: BACKEND_API_URL is not defined.');
+      setIsLoading(false);
+      setLoadingMessage('');
+    }
   };
 
   // Export options
@@ -859,7 +916,7 @@ ${cleanTextForExport(clinicalSummary)}`;
                       id="select-language"
                       value={language}
                       onChange={(e) => setLanguage(e.target.value)}
-                      disabled={activeSessionId !== null}
+                      disabled={isLoading}
                     >
                       <option value="auto">✨ Auto-Detect Spoken Language</option>
                       <option value="hi">Hinglish / Hindi (हिन्दी)</option>
@@ -934,6 +991,63 @@ ${cleanTextForExport(clinicalSummary)}`;
                         <audio src={audioUrl} controls style={{ width: '100%' }} />
                       </div>
                     </div>
+                                    {language === initialLanguage ? (
+                      <div style={{
+                        fontSize: '12.5px',
+                        color: 'var(--text-secondary)',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '10px',
+                        padding: '10px 14px',
+                        textAlign: 'center',
+                        width: '100%',
+                        lineHeight: '1.4'
+                      }}>
+                        💡 To regenerate this note, change the <strong>Primary Spoken Language</strong> in the <strong>Session Metadata</strong> dropdown above.
+                      </div>
+                    ) : (
+                      <div style={{
+                        fontSize: '12.5px',
+                        color: 'var(--accent-secondary, #2dd4bf)',
+                        background: 'rgba(45, 212, 191, 0.03)',
+                        border: '1px solid rgba(45, 212, 191, 0.2)',
+                        borderRadius: '10px',
+                        padding: '10px 14px',
+                        textAlign: 'center',
+                        width: '100%',
+                        lineHeight: '1.4'
+                      }}>
+                        ✨ Spoken language modified! Click <strong>Regenerate Note</strong> to process the recording.
+                      </div>
+                    )}
+
+                    <button
+                      className={`btn-primary-action ${isLoading ? 'loading' : ''}`}
+                      onClick={regenerateSession}
+                      disabled={isLoading || language === initialLanguage}
+                      style={{
+                        background: language === initialLanguage 
+                          ? 'rgba(255, 255, 255, 0.05)'
+                          : 'linear-gradient(135deg, var(--accent-primary, #8b5cf6), var(--accent-secondary, #2dd4bf))',
+                        boxShadow: language === initialLanguage ? 'none' : '0 4px 15px var(--accent-primary-glow)',
+                        marginTop: '4px',
+                        marginBottom: '4px'
+                      }}
+                    >
+                      {isLoading && (
+                        <span className="spinner-mini" style={{
+                          width: '16px',
+                          height: '16px',
+                          border: '2px solid transparent',
+                          borderTopColor: 'currentColor',
+                          borderBottomColor: 'currentColor',
+                          borderRadius: '50%',
+                          display: 'inline-block',
+                          animation: 'rotate-spinner 1s linear infinite'
+                        }}></span>
+                      )}
+                      {isLoading ? 'Regenerating...' : 'Regenerate Note'}
+                    </button>
                     
                     <div style={{
                       padding: '12px 16px',
@@ -945,7 +1059,7 @@ ${cleanTextForExport(clinicalSummary)}`;
                       lineHeight: '1.5',
                       textAlign: 'center'
                     }}>
-                      🔒 This consultation chart is locked. To modify this intake recording or generate a new note, please delete this session from the sidebar history list and record a fresh session.
+                      🔒 This consultation chart details are locked. If the incorrect language was selected, you can change it in the Session Metadata above and click Regenerate Note. For other modifications, please record a fresh session.
                     </div>
                   </div>
                 ) : (
